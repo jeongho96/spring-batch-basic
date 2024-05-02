@@ -1,8 +1,11 @@
-package com.fc.pass.fcspringbatch.customer;
+package com.fc.pass.fcspringbatch;
 
 import com.fc.pass.fcspringbatch.batch.BatchStatus;
 import com.fc.pass.fcspringbatch.batch.Job;
 import com.fc.pass.fcspringbatch.batch.JobExecution;
+import com.fc.pass.fcspringbatch.batch.TaskletJob;
+import com.fc.pass.fcspringbatch.customer.Customer;
+import com.fc.pass.fcspringbatch.customer.CustomerRepository;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -13,11 +16,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-
-
 @SpringBootTest
-class JobTest {
-
+class DormantBatchJobTest {
 
     @Autowired
     private CustomerRepository customerRepository;
@@ -26,13 +26,12 @@ class JobTest {
     private Job dormantBatchJob;
 
     @BeforeEach
-    public void setUp() {
+    public void setup() {
         customerRepository.deleteAll();
     }
 
     @Test
-    @DisplayName("로그인 시간이 일년을 경과한 고객이 세명이고," +
-            "일 년 이내에 로그인한 고객이 다섯명이면 3명의 고객이 휴먼전환대상이다.")
+    @DisplayName("로그인 시간이 일년을 경과한 고객이 세명이고, 일년 이내에 로그인한 고객이 다섯명이면 3명의 고객이 휴먼전환대상이다.")
     void test1() {
 
         // given
@@ -47,28 +46,22 @@ class JobTest {
         saveCustomer(364);
 
         // when
-        // 배치 작업을 돌려서 저장된 휴먼 계정의 수가 3개여야 함.
         final JobExecution result = dormantBatchJob.execute();
 
         // then
-        // DB의 저장된 값이 3개인지 확인.
         final long dormantCount = customerRepository.findAll()
                 .stream()
                 .filter(it -> it.getStatus() == Customer.Status.DORMANT)
                 .count();
 
-        // 같지 않다면 문제가 있음.
         Assertions.assertThat(dormantCount).isEqualTo(3);
         Assertions.assertThat(result.getStatus()).isEqualTo(BatchStatus.COMPLETED);
-
     }
 
-
-
     @Test
-    @DisplayName("고객이 10명이 있지만 모두 다 휴먼전환대상이면" +
-            "휴먼전환 대상은 10명이다.")
+    @DisplayName("고객이 열명이 있지만 모두 다 휴먼전환대상이면(1년 경과한사람) 휴먼전환 대상은 10명이다")
     void test2() {
+
         // given
         saveCustomer(400);
         saveCustomer(400);
@@ -81,44 +74,36 @@ class JobTest {
         saveCustomer(400);
         saveCustomer(400);
 
-
         // when
-        // 배치 작업을 돌려서 저장된 휴먼 계정의 수가 3개여야 함.
         final JobExecution result = dormantBatchJob.execute();
 
         // then
-        // DB의 저장된 값이 3개인지 확인.
         final long dormantCount = customerRepository.findAll()
                 .stream()
                 .filter(it -> it.getStatus() == Customer.Status.DORMANT)
                 .count();
 
-        // 같지 않다면 문제가 있음.
         Assertions.assertThat(dormantCount).isEqualTo(10);
         Assertions.assertThat(result.getStatus()).isEqualTo(BatchStatus.COMPLETED);
 
     }
 
-    // null이나 0인 경우를 고려해야 버그가 잘 생기지 않음.
     @Test
     @DisplayName("고객이 없는 경우에도 배치는 정상동작해야한다.")
     void test3() {
-        // given
 
         // when
-        // 배치 작업을 돌려서 저장된 휴먼 계정의 수가 3개여야 함.
         final JobExecution result = dormantBatchJob.execute();
 
         // then
-        // DB의 저장된 값이 3개인지 확인.
         final long dormantCount = customerRepository.findAll()
                 .stream()
                 .filter(it -> it.getStatus() == Customer.Status.DORMANT)
                 .count();
 
-        // 같지 않다면 문제가 있음.
         Assertions.assertThat(dormantCount).isEqualTo(0);
         Assertions.assertThat(result.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+
     }
 
     @Test
@@ -126,7 +111,7 @@ class JobTest {
     void test4() {
 
         // given
-        final Job dormantBatchJob = new Job(null, null);
+        final Job dormantBatchJob = new TaskletJob(null);
 
         // when
         final JobExecution result = dormantBatchJob.execute();
@@ -135,12 +120,28 @@ class JobTest {
         Assertions.assertThat(result.getStatus()).isEqualTo(BatchStatus.FAILED);
     }
 
+    @Test
+    @DisplayName("358일전에 로그인한 고객에게 휴면계정 예정자라고 메일을 발송해야한다.")
+    void test5() {
+
+        // given
+        saveCustomer(358);
+        saveCustomer(358);
+        saveCustomer(358);
+        saveCustomer(35);
+        saveCustomer(35);
+
+        // when
+        // then
+        dormantBatchJob.execute();
+
+    }
+
     private void saveCustomer(long loginMinusDays) {
         final String uuid = UUID.randomUUID().toString();
-        final Customer test = new Customer(uuid, uuid + "@gmail.com");
+        final Customer test = new Customer(uuid, uuid + "@fastcampus.com");
         test.setLoginAt(LocalDateTime.now().minusDays(loginMinusDays));
         customerRepository.save(test);
     }
-
 
 }
