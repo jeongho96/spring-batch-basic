@@ -1,6 +1,7 @@
 package com.fc.pass.fcspringbatch.customer;
 
 import com.fc.pass.fcspringbatch.batch.BatchStatus;
+import com.fc.pass.fcspringbatch.batch.Job;
 import com.fc.pass.fcspringbatch.batch.JobExecution;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,14 +16,14 @@ import java.util.UUID;
 
 
 @SpringBootTest
-class DormantBatchJobTest {
+class JobTest {
 
 
     @Autowired
     private CustomerRepository customerRepository;
 
     @Autowired
-    private DormantBatchJob dormantBatchJob;
+    private Job dormantBatchJob;
 
     @BeforeEach
     public void setUp() {
@@ -120,6 +121,19 @@ class DormantBatchJobTest {
         Assertions.assertThat(result.getStatus()).isEqualTo(BatchStatus.COMPLETED);
     }
 
+    @Test
+    @DisplayName("배치가 실패하면 BatchStatus는 FAILED를 반환해야한다.")
+    void test4() {
+
+        // given
+        final Job dormantBatchJob = new Job(null, null);
+
+        // when
+        final JobExecution result = dormantBatchJob.execute();
+
+        // then
+        Assertions.assertThat(result.getStatus()).isEqualTo(BatchStatus.FAILED);
+    }
 
     private void saveCustomer(long loginMinusDays) {
         final String uuid = UUID.randomUUID().toString();
@@ -128,17 +142,5 @@ class DormantBatchJobTest {
         customerRepository.save(test);
     }
 
-    @Test
-    @DisplayName("배치가 실패하면 BatchStatus는 FAILED를 반환해야한다.")
-    void test4() {
 
-        // given
-        final DormantBatchJob dormantBatchJob = new DormantBatchJob(null);
-
-        // when
-        final JobExecution result = dormantBatchJob.execute();
-
-        // then
-        Assertions.assertThat(result.getStatus()).isEqualTo(BatchStatus.FAILED);
-    }
 }
