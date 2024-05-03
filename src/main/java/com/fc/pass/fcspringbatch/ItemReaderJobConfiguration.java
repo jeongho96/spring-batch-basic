@@ -1,6 +1,7 @@
 package com.fc.pass.fcspringbatch;
 
 
+import jakarta.persistence.EntityManagerFactory;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
@@ -8,6 +9,8 @@ import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.ItemReader;
+import org.springframework.batch.item.database.builder.JpaCursorItemReaderBuilder;
+import org.springframework.batch.item.database.builder.JpaPagingItemReaderBuilder;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
 import org.springframework.batch.item.file.transform.Range;
@@ -34,11 +37,11 @@ public class ItemReaderJobConfiguration {
     public Step step(
             JobRepository jobRepository,
             PlatformTransactionManager transactionManager,
-            ItemReader<User> jsonItemReader
+            ItemReader<User> jpaCursorItemReader
     ){
         return new StepBuilder("step", jobRepository)
                 .<User,User>chunk(2, transactionManager)
-                .reader(jsonItemReader)
+                .reader(jpaCursorItemReader)
                 .writer(System.out::println)
                 .build();
 
@@ -79,4 +82,29 @@ public class ItemReaderJobConfiguration {
                 .jsonObjectReader(new JacksonJsonObjectReader<>(User.class))
                 .build();
     }
+
+
+    @Bean
+    public ItemReader<User> jpaPagingItemReader(
+            EntityManagerFactory entityManagerFactory
+    ) {
+        return new JpaPagingItemReaderBuilder<User>()
+                .name("jpaPagingItemReader")
+                .entityManagerFactory(entityManagerFactory)
+                .pageSize(1)
+                .queryString("SELECT u FROM User u ORDER BY u.id") // JPQL 기반 작성.
+                .build();
+    }
+
+    @Bean
+    public ItemReader<User> jpaCursorItemReader(
+            EntityManagerFactory entityManagerFactory
+    ) {
+        return new JpaCursorItemReaderBuilder<User>()
+                .name("jpaCursorItemReader")
+                .entityManagerFactory(entityManagerFactory)
+                .queryString("SELECT u FROM User u ORDER BY u.id")
+                .build();
+    }
+
 }
