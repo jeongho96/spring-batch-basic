@@ -21,7 +21,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @Slf4j
-@Configuration
+//@Configuration // 스프링에서는 Job이 2개가 있으면 멀티플 잡이라고 실행을 막음.
 public class JobConfiguration {
 
     @Bean
